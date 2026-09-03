@@ -1,0 +1,31 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0e2a;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+/*
+ * No flex/centering here: Phaser's Scale.CENTER_BOTH already centers the
+ * canvas by setting inline margin-left/margin-top on it directly. Centering
+ * it again with CSS flex would stack both offsets and push the canvas off
+ * to one side.
+ */
+#game-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#game-container canvas {
+  touch-action: none;
+}
