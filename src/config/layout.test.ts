@@ -107,4 +107,30 @@ describe('computeLayout', () => {
       }
     }
   });
+
+  it.each([
+    [1366, 768],
+    [1440, 900],
+    [1920, 1080],
+  ])('desktop %ix%i: HUD height (uiSafeTop) is compact (42px-52px) and leaves clear space above ceiling', (w, h) => {
+    const layout = computeLayout(w, h);
+    expect(layout.isDesktop).toBe(true);
+    expect(layout.uiSafeTop).toBeGreaterThanOrEqual(42);
+    expect(layout.uiSafeTop).toBeLessThanOrEqual(52);
+    // Grid ceiling sits cleanly below the HUD with no overlap
+    expect(layout.gridOriginY).toBeGreaterThan(layout.uiSafeTop);
+    expect(layout.gridOriginY - layout.uiSafeTop).toBeGreaterThanOrEqual(12);
+  });
+
+  it.each([
+    [390, 844],
+    [430, 932],
+  ])('mobile %ix%i: preserves mobile safe area and layout proportions', (w, h) => {
+    const layout = computeLayout(w, h);
+    expect(layout.isDesktop).toBe(false);
+    expect(layout.cols).toBe(10);
+    expect(layout.uiSafeTop).toBeCloseTo(h * (130 / 1280), 1);
+    expect(layout.gridOriginY).toBeCloseTo(h * (150 / 1280), 1);
+    expect(layout.gridOriginY).toBeGreaterThan(layout.uiSafeTop);
+  });
 });

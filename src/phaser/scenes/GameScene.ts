@@ -119,7 +119,6 @@ export class GameScene extends Phaser.Scene {
 
     this.relayoutVisuals();
 
-    this.input.setDefaultCursor('none');
     // GameScene's input listeners see every pointer event on the canvas,
     // including clicks meant for the UIScene overlay (pause/restart icons,
     // modal buttons) drawn on top of it — both scenes' input plugins process
@@ -129,27 +128,52 @@ export class GameScene extends Phaser.Scene {
     // above the play field (aiming steeply) fire normally on release.
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       this.lastPointer = { x: pointer.x, y: pointer.y };
+      if (this.sys.isPaused()) return;
+      if (pointer.y < this.layout.uiSafeTop) {
+        this.aimCursor.hide();
+        this.trajectoryGuide.hide();
+        this.game.canvas.style.cursor = 'default';
+        return;
+      }
       if (this.state !== 'aiming') return;
-      const allowed = pointer.isDown ? this.aimGestureFromPlayField : pointer.y >= this.layout.uiSafeTop;
+      const allowed = pointer.isDown ? this.aimGestureFromPlayField : true;
       if (allowed) this.updateAim(pointer.x, pointer.y);
     });
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.sys.isPaused()) return;
       audioManager.unlock();
       this.aimGestureFromPlayField = pointer.y >= this.layout.uiSafeTop;
       if (this.state === 'aiming' && this.aimGestureFromPlayField) this.updateAim(pointer.x, pointer.y);
     });
     this.input.on('pointerup', () => {
+      if (this.sys.isPaused()) return;
       if (this.state === 'aiming' && this.aimGestureFromPlayField) this.fire();
       this.aimGestureFromPlayField = false;
     });
-    const onGameOut = () => this.aimCursor.hide();
+    const onGameOut = () => {
+      this.aimCursor.hide();
+      this.trajectoryGuide.hide();
+      this.game.canvas.style.cursor = 'default';
+    };
     this.game.events.on('gameout', onGameOut);
+
+    const onPause = () => {
+      this.aimCursor.hide();
+      this.trajectoryGuide.hide();
+      this.game.canvas.style.cursor = 'default';
+    };
+    const onResume = () => {
+      this.aimGestureFromPlayField = false;
+      this.game.canvas.style.cursor = 'default';
+    };
+    this.events.on(Phaser.Scenes.Events.PAUSE, onPause);
+    this.events.on(Phaser.Scenes.Events.RESUME, onResume);
 
     const onResize = (gameSize: Phaser.Structs.Size) => this.handleResize(gameSize);
     this.scale.on('resize', onResize);
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown(onGameOut, onResize));
-    this.events.once(Phaser.Scenes.Events.DESTROY, () => this.teardown(onGameOut, onResize));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown(onGameOut, onResize, onPause, onResume));
+    this.events.once(Phaser.Scenes.Events.DESTROY, () => this.teardown(onGameOut, onResize, onPause, onResume));
 
     if (!this.scene.isActive('UI')) {
       this.scene.launch('UI');
@@ -159,11 +183,19 @@ export class GameScene extends Phaser.Scene {
     this.updateAim(this.lastPointer.x, this.lastPointer.y);
   }
 
-  private teardown(onGameOut: () => void, onResize: (gameSize: Phaser.Structs.Size) => void): void {
+  private teardown(
+    onGameOut: () => void,
+    onResize: (gameSize: Phaser.Structs.Size) => void,
+    onPause: () => void,
+    onResume: () => void,
+  ): void {
+    this.game.canvas.style.cursor = 'default';
     this.input.setDefaultCursor('default');
     this.input.removeAllListeners();
     this.game.events.off('gameout', onGameOut);
     this.scale.off('resize', onResize);
+    this.events.off(Phaser.Scenes.Events.PAUSE, onPause);
+    this.events.off(Phaser.Scenes.Events.RESUME, onResume);
   }
 
   /** Repositions/rescales everything that depends on `this.layout` (initial create, and after a resize). */
@@ -221,7 +253,15 @@ export class GameScene extends Phaser.Scene {
     });
     this.lastTrajectory = result;
     this.trajectoryGuide.update(result, this.grid, this.currentColor);
-    this.aimCursor.show(px, py);
+
+    const inPlayField = py >= this.layout.uiSafeTop;
+    if (inPlayField && !this.sys.isPaused() && this.state === 'aiming') {
+      this.aimCursor.show(px, py);
+      this.game.canvas.style.cursor = 'none';
+    } else {
+      this.aimCursor.hide();
+      this.game.canvas.style.cursor = 'default';
+    }
   }
 
   private fire(): void {
@@ -230,6 +270,7 @@ export class GameScene extends Phaser.Scene {
     this.shotsFired += 1;
     this.trajectoryGuide.hide();
     this.aimCursor.hide();
+    this.game.canvas.style.cursor = 'default';
     this.shooter.hideCurrentBubble();
     this.shooter.playFireAnimation();
     audioManager.play('shoot');
@@ -419,6 +460,9 @@ export class GameScene extends Phaser.Scene {
 
   private triggerLevelComplete(): void {
     this.state = 'levelComplete';
+    this.aimCursor.hide();
+    this.trajectoryGuide.hide();
+    this.game.canvas.style.cursor = 'default';
     audioManager.play('levelComplete');
     const par = this.levelConfig.startRows * 300;
     let stars = 1;
@@ -430,6 +474,9 @@ export class GameScene extends Phaser.Scene {
 
   private triggerGameOver(): void {
     this.state = 'gameOver';
+    this.aimCursor.hide();
+    this.trajectoryGuide.hide();
+    this.game.canvas.style.cursor = 'default';
     audioManager.play('gameOver');
     this.events.emit('gameOver', { score: this.score, level: this.levelNumber });
   }

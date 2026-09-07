@@ -46,10 +46,15 @@ const DESKTOP_TARGET_VISIBLE_ROWS = 11;
 const DESKTOP_MAX_CELL_PX = 92;
 const DESKTOP_MIN_CELL_PX = 34;
 const DESKTOP_SIDE_MARGIN_FRAC = 0.06;
-const DESKTOP_UI_SAFE_TOP_FRAC = 0.09;
-const DESKTOP_UI_SAFE_TOP_MIN = 90;
+const DESKTOP_UI_SAFE_TOP_FRAC = 0.05;
+const DESKTOP_UI_SAFE_TOP_MIN = 42;
+const DESKTOP_UI_SAFE_TOP_MAX = 52;
 const DESKTOP_SHOOTER_AREA_FRAC = 0.22;
 const DESKTOP_SHOOTER_AREA_MIN = 200;
+
+function computeDesktopUiSafeTop(height: number): number {
+  return Math.round(Math.min(DESKTOP_UI_SAFE_TOP_MAX, Math.max(DESKTOP_UI_SAFE_TOP_MIN, height * DESKTOP_UI_SAFE_TOP_FRAC)));
+}
 
 function computeMobileLayout(width: number, height: number): GameLayout {
   const sideMargin = width * MOBILE_SIDE_MARGIN_FRAC;
@@ -77,7 +82,7 @@ function computeMobileLayout(width: number, height: number): GameLayout {
 }
 
 function computeDesktopLayout(width: number, height: number): GameLayout {
-  const uiSafeTop = Math.max(DESKTOP_UI_SAFE_TOP_MIN, height * DESKTOP_UI_SAFE_TOP_FRAC);
+  const uiSafeTop = computeDesktopUiSafeTop(height);
   const shooterAreaHeight = Math.max(DESKTOP_SHOOTER_AREA_MIN, height * DESKTOP_SHOOTER_AREA_FRAC);
   const sideMargin = width * DESKTOP_SIDE_MARGIN_FRAC;
 
@@ -96,7 +101,7 @@ function computeDesktopLayout(width: number, height: number): GameLayout {
 
   const gridWidthUsed = cols * cellSize;
   const gridOriginX = (width - gridWidthUsed) / 2;
-  const gridOriginY = uiSafeTop + Math.max(16, height * 0.02);
+  const gridOriginY = uiSafeTop + Math.max(12, Math.round(height * 0.015));
 
   return {
     width,
@@ -150,7 +155,7 @@ export function relayoutForFixedCols(viewportWidth: number, viewportHeight: numb
     return { ...base, cols, cellSize, wallRight: base.wallLeft + cols * cellSize };
   }
 
-  const uiSafeTop = Math.max(DESKTOP_UI_SAFE_TOP_MIN, height * DESKTOP_UI_SAFE_TOP_FRAC);
+  const uiSafeTop = computeDesktopUiSafeTop(height);
   const shooterAreaHeight = Math.max(DESKTOP_SHOOTER_AREA_MIN, height * DESKTOP_SHOOTER_AREA_FRAC);
   const sideMargin = width * DESKTOP_SIDE_MARGIN_FRAC;
   const availableWidth = width - sideMargin * 2;
@@ -165,7 +170,7 @@ export function relayoutForFixedCols(viewportWidth: number, viewportHeight: numb
 
   const gridWidthUsed = cols * cellSize;
   const gridOriginX = (width - gridWidthUsed) / 2;
-  const gridOriginY = uiSafeTop + Math.max(16, height * 0.02);
+  const gridOriginY = uiSafeTop + Math.max(12, Math.round(height * 0.015));
 
   return {
     width,

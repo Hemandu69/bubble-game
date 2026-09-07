@@ -26,26 +26,31 @@ export class UIScene extends Phaser.Scene {
   create(): void {
     const gameScene = this.scene.get('Game') as GameScene;
 
-    this.topBar = this.add.rectangle(this.scale.width / 2, 60, this.scale.width, 120, 0x140a30, 0.55).setOrigin(0.5);
+    this.input.setDefaultCursor('default');
 
-    this.levelText = this.add.text(24, 34, '', {
+    this.topBar = this.add.rectangle(0, 0, 0, 0, 0x140a30, 0.65).setOrigin(0.5);
+
+    this.levelText = this.add.text(0, 0, '', {
       fontFamily: 'Georgia, serif',
-      fontSize: '26px',
+      fontSize: '22px',
       color: '#ffffff',
     });
 
-    this.scoreText = this.add.text(24, 68, '', {
+    this.scoreText = this.add.text(0, 0, '', {
       fontFamily: 'Georgia, serif',
-      fontSize: '22px',
+      fontSize: '20px',
       color: '#ffe08a',
     });
 
-    this.pauseBtn = this.createIconButton(this.scale.width - 60, 60, '⏸', () => this.togglePause(gameScene));
-    this.restartBtn = this.createIconButton(this.scale.width - 130, 60, '↻', () => {
+    this.restartBtn = this.createIconButton(0, 0, '↻', () => {
       audioManager.play('uiClick');
       this.closeOverlay();
       gameScene.restartLevel();
     });
+
+    this.pauseBtn = this.createIconButton(0, 0, '⏸', () => this.togglePause(gameScene));
+
+    this.layoutHud();
 
     gameScene.events.on('hud', (payload: HudPayload) => this.updateHud(payload));
     gameScene.events.on('levelComplete', (payload: { score: number; stars: number; level: number }) =>
@@ -53,7 +58,7 @@ export class UIScene extends Phaser.Scene {
     );
     gameScene.events.on('gameOver', (payload: { score: number; level: number }) => this.showGameOver(gameScene, payload));
 
-    const onResize = (gameSize: Phaser.Structs.Size) => this.handleResize(gameSize);
+    const onResize = (_gameSize: Phaser.Structs.Size) => this.handleResize();
     this.scale.on('resize', onResize);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -64,13 +69,70 @@ export class UIScene extends Phaser.Scene {
     });
   }
 
-  private handleResize(gameSize: Phaser.Structs.Size): void {
-    const width = gameSize.width;
-    this.topBar.setPosition(width / 2, 60).setSize(width, 120);
-    this.pauseBtn.setPosition(width - 60, 60);
-    this.restartBtn.setPosition(width - 130, 60);
+  private handleResize(): void {
+    this.layoutHud();
+  }
+
+  private layoutHud(): void {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const isDesktop = width >= height;
+
+    if (isDesktop) {
+      // Desktop: compact single-row arcade HUD (42px - 52px)
+      const hudHeight = Math.round(Math.min(52, Math.max(42, height * 0.05)));
+      const centerY = hudHeight / 2;
+
+      this.topBar.setPosition(width / 2, centerY).setSize(width, hudHeight);
+      this.topBar.setFillStyle(0x140a30, 0.65);
+
+      const levelFontSize = Math.round(Math.min(22, Math.max(17, hudHeight * 0.44)));
+      this.levelText
+        .setPosition(24, centerY)
+        .setOrigin(0, 0.5)
+        .setFontSize(`${levelFontSize}px`);
+
+      const scoreX = Math.max(170, this.levelText.x + this.levelText.width + 24);
+      const scoreFontSize = Math.round(Math.min(20, Math.max(16, hudHeight * 0.4)));
+      this.scoreText
+        .setPosition(scoreX, centerY)
+        .setOrigin(0, 0.5)
+        .setFontSize(`${scoreFontSize}px`);
+
+      this.restartBtn
+        .setPosition(width - 82, centerY)
+        .setFontSize('22px');
+
+      this.pauseBtn
+        .setPosition(width - 36, centerY)
+        .setFontSize('20px');
+    } else {
+      // Mobile: preserve existing multi-line layout scaled to safe area
+      const hudHeight = Math.round(height * (120 / 1280));
+      this.topBar.setPosition(width / 2, hudHeight / 2).setSize(width, hudHeight);
+      this.topBar.setFillStyle(0x140a30, 0.55);
+
+      this.levelText
+        .setPosition(20, Math.round(hudHeight * 0.32))
+        .setOrigin(0, 0.5)
+        .setFontSize('22px');
+
+      this.scoreText
+        .setPosition(20, Math.round(hudHeight * 0.72))
+        .setOrigin(0, 0.5)
+        .setFontSize('18px');
+
+      this.restartBtn
+        .setPosition(width - 76, Math.round(hudHeight * 0.5))
+        .setFontSize('24px');
+
+      this.pauseBtn
+        .setPosition(width - 32, Math.round(hudHeight * 0.5))
+        .setFontSize('22px');
+    }
+
     if (this.overlay) {
-      this.overlay.setPosition(this.scale.width / 2, this.scale.height / 2 - 60);
+      this.overlay.setPosition(width / 2, height / 2 - (isDesktop ? 20 : 60));
     }
   }
 
@@ -78,17 +140,21 @@ export class UIScene extends Phaser.Scene {
     const title = payload.label ? `${payload.label} · Lv ${payload.level}` : `Level ${payload.level}`;
     this.levelText.setText(title);
     this.scoreText.setText(`Score ${payload.score}`);
+    this.layoutHud();
   }
 
   private createIconButton(x: number, y: number, label: string, onClick: () => void): Phaser.GameObjects.Text {
     const btn = this.add
       .text(x, y, label, {
         fontFamily: 'Arial',
-        fontSize: '30px',
+        fontSize: '22px',
         color: '#ffffff',
+        padding: { x: 8, y: 8 },
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
+    btn.on('pointerover', () => btn.setColor('#ffe08a'));
+    btn.on('pointerout', () => btn.setColor('#ffffff'));
     btn.on('pointerdown', () => {
       this.tweens.add({ targets: btn, scale: 0.85, duration: 70, yoyo: true });
       onClick();
@@ -169,12 +235,13 @@ export class UIScene extends Phaser.Scene {
 
   private buildPanel(title: string): Phaser.GameObjects.Container {
     this.closeOverlay();
-    const container = this.add.container(this.scale.width / 2, this.scale.height / 2 - 60);
+    const isDesktop = this.scale.width >= this.scale.height;
+    const container = this.add.container(this.scale.width / 2, this.scale.height / 2 - (isDesktop ? 20 : 60));
     container.setDepth(100);
     this.overlay = container;
 
     const dim = this.add.rectangle(0, 0, this.scale.width * 4, this.scale.height * 4, 0x0a0e2a, 0.6);
-    dim.setInteractive();
+    dim.setInteractive({ cursor: 'default' });
 
     const panel = this.add.graphics();
     panel.fillStyle(0x241154, 0.96);
@@ -202,16 +269,22 @@ export class UIScene extends Phaser.Scene {
     const width = 300;
     const height = 64;
     const bg = this.add.graphics();
-    bg.fillStyle(0x7b4fd6, 1);
-    bg.fillRoundedRect(x - width / 2, y - height / 2, width, height, 18);
-    bg.lineStyle(2, 0xffffff, 0.8);
-    bg.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 18);
+    const drawBg = (fill: number) => {
+      bg.clear();
+      bg.fillStyle(fill, 1);
+      bg.fillRoundedRect(x - width / 2, y - height / 2, width, height, 18);
+      bg.lineStyle(2, 0xffffff, 0.8);
+      bg.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 18);
+    };
+    drawBg(0x7b4fd6);
 
     const text = this.add
       .text(x, y, label, { fontFamily: 'Georgia, serif', fontSize: '26px', color: '#ffffff' })
       .setOrigin(0.5);
 
     const zone = this.add.zone(x, y, width, height).setInteractive({ useHandCursor: true });
+    zone.on('pointerover', () => drawBg(0x9269e8));
+    zone.on('pointerout', () => drawBg(0x7b4fd6));
     zone.on('pointerdown', () => {
       audioManager.play('uiClick');
       this.tweens.add({ targets: [bg, text], scale: 0.94, duration: 60, yoyo: true });
