@@ -26,8 +26,6 @@ import { progressManager, audioManager } from '../appState';
 
 type SceneState = 'aiming' | 'firing' | 'resolving' | 'levelComplete' | 'gameOver';
 
-const MUZZLE_OFFSET_Y = -60;
-
 export class GameScene extends Phaser.Scene {
   private layout!: GameLayout;
   private bg!: Phaser.GameObjects.Image;
@@ -218,7 +216,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private muzzleOrigin(): WorldPoint {
-    return { x: this.layout.shooterX, y: this.layout.shooterY + MUZZLE_OFFSET_Y * this.scaleFactor };
+    return this.shooter.getMuzzlePoint();
   }
 
   private pickShotColor(): BubbleColor {
